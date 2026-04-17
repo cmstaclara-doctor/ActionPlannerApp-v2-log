@@ -1,203 +1,329 @@
 "use client";
+// ─── Coach Dashboard — localStorage-only, no Supabase ────────────────────────
 
 import { useState, useEffect } from "react";
+import { getStudents, addStudent, updateStudentName, deleteStudent, seedDefaultStudents, getGoalRecord, getCoachInfo, setCoachInfo, getStudentDeclaration, setStudentDeclaration } from "@/lib/storage";
+import type { Student, GoalType } from "@/lib/types";
+import { GOAL_TYPE_META } from "@/lib/constants";
+import { Plus, Pencil, Check, Trash2, ChevronRight, CheckCircle2, Clock, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { Check, Plus, Pencil, RotateCcw } from "lucide-react";
-import { getCoachId, fetchStudentsForCoach, createStudent, updateStudent } from "@/lib/supabase-operations";
 
-interface Student {
-  id: string;
-  coach_id: string;
-  name: string;
-  created_at: string;
+const GOAL_TYPES: GoalType[] = ["enrollment", "personal", "professional"];
+
+// Wizard disabled after Graduation day — goals remain readable, no new entries
+const WIZARD_EXPIRY = new Date("2026-06-21T23:59:59+08:00"); // Jun 21 PH time
+
+export function isWizardExpired(): boolean {
+  return new Date() > WIZARD_EXPIRY;
 }
 
-const SEEDED_STUDENTS = ["Student 1", "Student 2", "Student 3", "Student 4", "Student 5", "Student 6"];
+function DeclarationField({ studentId }: { studentId: string }) {
+  const [text, setText] = useState(() => getStudentDeclaration(studentId));
+
+  function handleBlur() {
+    setStudentDeclaration(studentId, text);
+  }
+
+  return (
+    <div className="px-4 pb-3 border-t border-zinc-700/50 pt-2.5">
+      <p className="text-xs text-zinc-600 uppercase tracking-wide font-medium mb-1.5">Declaration</p>
+      <textarea
+        rows={2}
+        placeholder="The grandest version of my greatest vision for myself is…"
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={handleBlur}
+        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:border-blue-500 resize-none"
+      />
+    </div>
+  );
+}
 
 export function CoachDashboard() {
   const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
-  const [newStudentName, setNewStudentName] = useState("");
-  const [coachId, setCoachId] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [, setRefresh] = useState(0);
+  const [coachName, setCoachNameState] = useState("");
+  const [councilName, setCouncilNameState] = useState("");
+  const [editingCoach, setEditingCoach] = useState(false);
+  const expired = isWizardExpired();
 
-  // Check killpill
   useEffect(() => {
-    const cutoffDate = new Date("2026-06-21T23:59:59Z");
-    if (new Date() > cutoffDate) {
-      document.body.innerHTML =
-        '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: system-ui; background: #0f0f0f; color: #999;"><div style="text-align: center;"><h1 style="font-size: 2rem; margin: 0 0 1rem 0;">Program Ended</h1><p style="font-size: 1rem; margin: 0;">LEAP 99 concluded on June 21, 2026. Thank you for your participation.</p></div></div>';
-      return;
-    }
+    seedDefaultStudents();
+    setStudents(getStudents());
+    const info = getCoachInfo();
+    setCoachNameState(info.coachName);
+    setCouncilNameState(info.councilName);
   }, []);
 
-  // Load students from DB on mount
-  useEffect(() => {
-    async function load() {
-      const id = getCoachId();
-      setCoachId(id);
-
-      const dbStudents = await fetchStudentsForCoach(id);
-
-      // If no students, seed with default ones
-      if (dbStudents.length === 0) {
-        const seeded: Student[] = SEEDED_STUDENTS.map((name) => ({
-          id: `local_${name.toLowerCase().replace(/\s+/g, "_")}`,
-          coach_id: id,
-          name,
-          created_at: new Date().toISOString(),
-        }));
-        setStudents(seeded);
-      } else {
-        setStudents(dbStudents);
-      }
-
-      setLoading(false);
-    }
-
-    load();
-  }, []);
-
-  async function handleAddStudent() {
-    if (!newStudentName.trim() || students.length >= 6) return;
-
-    const newStudent = await createStudent(coachId, newStudentName.trim());
-    if (newStudent) {
-      setStudents([...students, newStudent]);
-      setNewStudentName("");
-    }
+  function refresh() {
+    setStudents(getStudents());
+    setRefresh(r => r + 1);
   }
 
-  async function handleSaveName(studentId: string) {
-    if (!editingName.trim()) return;
-    const success = await updateStudent(studentId, editingName.trim());
-    if (success) {
-      setStudents((prev) =>
-        prev.map((s) => (s.id === studentId ? { ...s, name: editingName.trim() } : s))
-      );
-    }
+  function handleSaveCoach() {
+    setCoachInfo(coachName, councilName);
+    setEditingCoach(false);
+  }
+
+  function handleAdd() {
+    if (!newName.trim()) return;
+    addStudent(newName.trim());
+    setNewName("");
+    setAdding(false);
+    refresh();
+  }
+
+  function handleRename() {
+    if (!editingId || !editingName.trim()) return;
+    updateStudentName(editingId, editingName.trim());
     setEditingId(null);
     setEditingName("");
+    refresh();
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Loading dashboard...</p>
-      </div>
-    );
+  function handleDelete(id: string, name: string) {
+    if (!confirm(`Delete ${name} and all their goals? This cannot be undone.`)) return;
+    deleteStudent(id);
+    refresh();
   }
 
-  const emptySlots = 6 - students.length;
+  function handleResetStudents() {
+    if (!confirm("Reset all students to Student 1–6? This will delete all current students and their goals.")) return;
+    const all = getStudents();
+    for (const s of all) deleteStudent(s.id);
+    // Re-seed
+    const defaults = ["Student1", "Student2", "Student3", "Student4", "Student5", "Student6"];
+    for (const name of defaults) addStudent(name);
+    refresh();
+  }
+
+  function getGoalStatus(studentId: string) {
+    return GOAL_TYPES.map(gt => ({ gt, has: !!getGoalRecord(studentId, gt) }));
+  }
+
 
   return (
-    <div className="min-h-screen bg-background pb-12">
-      <div className="max-w-5xl mx-auto px-4 pt-6 space-y-6">
-        {/* Header */}
-        <div className="space-y-0.5">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">
-            Coach Dashboard <span className="text-primary">for LEAP 99</span>
-          </h1>
-          <p className="text-xs text-muted-foreground">by Doc Kalodski · Multiuser</p>
-        </div>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 px-4 py-8 max-w-lg mx-auto">
+      {/* Header */}
+      <div className="mb-6 space-y-1">
+        <h1 className="text-2xl font-bold text-zinc-100">ActionPlanning App</h1>
+        <p className="text-sm text-zinc-500">LEAP 99 v2.0 · by Doc Kalodski</p>
+      </div>
 
-        {/* Students Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {students.map((student) => (
+      {/* Coach / Council info */}
+      <div className="mb-6 p-4 rounded-xl border border-zinc-700 bg-zinc-800/40 space-y-3">
+        {editingCoach ? (
+          <div className="space-y-2">
+            <input
+              type="text"
+              placeholder="Coach name"
+              value={coachName}
+              onChange={e => setCoachNameState(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleSaveCoach(); if (e.key === "Escape") setEditingCoach(false); }}
+              autoFocus
+              className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+            />
+            <input
+              type="text"
+              placeholder="Council name"
+              value={councilName}
+              onChange={e => setCouncilNameState(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleSaveCoach(); if (e.key === "Escape") setEditingCoach(false); }}
+              className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+            />
+            <div className="flex gap-2">
+              <button type="button" onClick={handleSaveCoach} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">
+                Save
+              </button>
+              <button type="button" onClick={() => setEditingCoach(false)} className="px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-400 hover:text-zinc-200 text-xs transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-zinc-100">
+                {coachName || <span className="text-zinc-500 italic">Coach name not set</span>}
+              </p>
+              <p className="text-xs text-zinc-500">
+                {councilName || <span className="italic">Council name not set</span>}
+              </p>
+            </div>
+            <button
+              type="button"
+              title="Edit coach info"
+              onClick={() => setEditingCoach(true)}
+              className="text-zinc-600 hover:text-zinc-400 transition-colors"
+            >
+              <Pencil size={13} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Student list header */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Students</p>
+        {!expired && (
+          <button
+            type="button"
+            title="Reset to default Student 1–6"
+            onClick={handleResetStudents}
+            className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+          >
+            <RotateCcw size={11} /> Reset defaults
+          </button>
+        )}
+      </div>
+
+      {/* Student list */}
+      <div className="space-y-3">
+        {students.map(student => {
+          const statuses = getGoalStatus(student.id);
+          const completedCount = statuses.filter(s => s.has).length;
+          const isEditing = editingId === student.id;
+
+          return (
             <div
               key={student.id}
-              className="rounded-2xl border border-border bg-card p-4 space-y-3 transition-all hover:border-primary/30"
+              className="rounded-xl border border-zinc-700 bg-zinc-800/40 hover:border-zinc-600 transition-colors overflow-hidden"
             >
-              {/* Student name */}
-              <div>
-                {editingId === student.id ? (
-                  <div className="flex gap-1.5">
-                    <input
-                      type="text"
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveName(student.id);
-                        if (e.key === "Escape") setEditingId(null);
-                      }}
-                      className="flex-1 text-sm bg-transparent border border-input rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
+              {/* Top row: name + badges + actions */}
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  {isEditing ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Student name"
+                        value={editingName}
+                        onChange={e => setEditingName(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setEditingId(null); }}
+                        autoFocus
+                        className="flex-1 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-zinc-100 focus:outline-none focus:border-blue-500"
+                      />
+                      <button type="button" title="Save name" onClick={handleRename} className="text-green-400 hover:text-green-300">
+                        <Check size={15} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-zinc-100 truncate">{student.name}</span>
+                        {!expired && (
+                          <button
+                            type="button"
+                            title="Edit name"
+                            onClick={() => { setEditingId(student.id); setEditingName(student.name); }}
+                            className="text-zinc-600 hover:text-zinc-400 transition-colors flex-shrink-0"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {statuses.map(({ gt, has }) => {
+                          const meta = GOAL_TYPE_META[gt];
+                          return (
+                            <span
+                              key={gt}
+                              title={meta.label}
+                              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border ${
+                                has
+                                  ? "border-green-600/40 bg-green-600/10 text-green-400"
+                                  : "border-zinc-700 bg-zinc-800/60 text-zinc-600"
+                              }`}
+                            >
+                              {has ? <CheckCircle2 size={9} /> : <Clock size={9} />}
+                              <span className="hidden sm:inline">{gt.charAt(0).toUpperCase() + gt.slice(1)}</span>
+                              <span className="sm:hidden">{meta.icon}</span>
+                            </span>
+                          );
+                        })}
+                        <span className="text-xs text-zinc-600 ml-1">{completedCount}/3</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                  {!expired && (
                     <button
                       type="button"
-                      onClick={() => handleSaveName(student.id)}
-                      className="px-2 py-1 rounded bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                      title="Delete student"
+                      onClick={() => handleDelete(student.id, student.name)}
+                      className="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                     >
-                      <Check className="h-3 w-3" />
+                      <Trash2 size={13} />
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingId(student.id);
-                      setEditingName(student.name);
-                    }}
-                    className="w-full text-left group"
+                  )}
+                  <Link
+                    href={`/${student.id}`}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-600/30 text-blue-400 hover:bg-blue-600/30 transition-colors text-sm"
                   >
-                    <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-                      {student.name}
-                    </p>
-                    <span className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
-                      <Pencil className="h-2.5 w-2.5" />
-                    </span>
-                  </button>
-                )}
+                    Open <ChevronRight size={13} />
+                  </Link>
+                </div>
               </div>
 
-              {/* Load/Edit button */}
-              <Link
-                href={`/student/${student.id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors w-full justify-center"
-              >
-                Edit Goals
-              </Link>
+              {/* Declaration — always editable, sits below the top row */}
+              <DeclarationField studentId={student.id} />
             </div>
-          ))}
+          );
+        })}
 
-          {/* Empty slots */}
-          {emptySlots > 0 && emptySlots <= 6 && (
-            <div className="rounded-2xl border border-dashed border-border/40 bg-muted/5 p-4 flex flex-col items-center justify-center min-h-32 space-y-2">
-              <p className="text-xs text-muted-foreground text-center">
-                {emptySlots > 1 ? `${emptySlots} slots available` : "1 slot available"}
-              </p>
-              {emptySlots > 0 && (
-                <div className="flex gap-1 w-full">
-                  <input
-                    type="text"
-                    value={newStudentName}
-                    onChange={(e) => setNewStudentName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleAddStudent()}
-                    placeholder="Student name…"
-                    className="flex-1 text-xs bg-transparent border border-input rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddStudent}
-                    disabled={!newStudentName.trim()}
-                    className="px-2 py-1 rounded bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
+        {students.length === 0 && (
+          <div className="text-center py-10 text-zinc-500 text-sm">
+            No students yet. Add one below.
+          </div>
+        )}
+      </div>
+
+      {/* Add student — hidden after wizard expiry */}
+      {!expired && (
+        <div className="mt-6">
+          {adding ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Student name"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setAdding(false); }}
+                autoFocus
+                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={handleAdd}
+                className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAdding(false); setNewName(""); }}
+                className="px-3 py-2.5 rounded-lg border border-zinc-700 text-zinc-400 hover:text-zinc-200 text-sm transition-colors"
+              >
+                Cancel
+              </button>
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              <Plus size={16} />
+              Add student
+            </button>
           )}
         </div>
-
-        {/* Seeded note */}
-        {students.length > 0 &&
-          students.some((s) => SEEDED_STUDENTS.includes(s.name)) && (
-            <div className="rounded-lg border border-border/30 bg-muted/5 p-3">
-              <p className="text-xs text-muted-foreground">
-                💾 Seeded students shown until first save. Once saved, all goals sync to the cloud.
-              </p>
-            </div>
-          )}
-      </div>
+      )}
+    </div>
+  );
+}

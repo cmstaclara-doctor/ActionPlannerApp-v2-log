@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Action Planner · LEAP 99",
-  description: "LEAP 99 Action Planner — set your 3 goals for 8 weeks",
+  title: "ActionPlanning App · LEAP 99 v2.0",
+  description: "ActionPlanning App by Doc Kalodski — LEAP 99 v2.0, set your 3 goals for 8 weeks",
 };
 
 export const viewport: Viewport = {
