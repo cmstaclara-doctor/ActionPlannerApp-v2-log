@@ -1,50 +1,50 @@
--- ActionPlanner multiuser schema
--- Run this SQL in Supabase SQL Editor to set up tables
+-- ActionPlanner App v2.0-log — 1 coach, cloud-synced
+-- Run this SQL in Supabase SQL Editor
 
--- Create coaches table
-CREATE TABLE public.coaches (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-  name TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Coach settings (1 row per key)
+CREATE TABLE coach_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );
 
--- Create students table
-CREATE TABLE public.students (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-  coach_id TEXT NOT NULL REFERENCES coaches(id) ON DELETE CASCADE,
+-- Students
+CREATE TABLE students (
+  id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  gg_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create goals table
-CREATE TABLE public.goals (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+-- Goal records (JSONB mirror of GoalRecord type)
+CREATE TABLE goal_records (
   student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  templateId TEXT NOT NULL,
-  answers JSONB NOT NULL DEFAULT '{}'::JSONB,
-  pearStatement TEXT NOT NULL,
-  declaration TEXT NOT NULL DEFAULT '',
-  declarationMeaning TEXT NOT NULL DEFAULT '',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  goal_type TEXT NOT NULL,
+  record JSONB NOT NULL DEFAULT '{}',
+  saved_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (student_id, goal_type)
 );
 
--- Create indexes for performance
-CREATE INDEX idx_students_coach_id ON students(coach_id);
-CREATE INDEX idx_goals_student_id ON goals(student_id);
-CREATE INDEX idx_goals_templateId ON goals(templateId);
+-- Declarations
+CREATE TABLE declarations (
+  student_id TEXT PRIMARY KEY REFERENCES students(id) ON DELETE CASCADE,
+  text TEXT NOT NULL DEFAULT ''
+);
 
--- RLS (Row Level Security) - Anon can read/write all
--- Since this is no-login, disable RLS or set permissive policies
-ALTER TABLE coaches DISABLE ROW LEVEL SECURITY;
+-- Indexes for performance
+CREATE INDEX idx_goal_records_student_id ON goal_records(student_id);
+
+-- Disable RLS (single coach, no auth needed)
+ALTER TABLE coach_settings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE students DISABLE ROW LEVEL SECURITY;
-ALTER TABLE goals DISABLE ROW LEVEL SECURITY;
+ALTER TABLE goal_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE declarations DISABLE ROW LEVEL SECURITY;
 
 -- Grant permissions to anon role
-GRANT ALL ON public.coaches TO anon;
-GRANT ALL ON public.students TO anon;
-GRANT ALL ON public.goals TO anon;
-
-GRANT ALL ON SEQUENCE coaches_id_seq TO anon;
-GRANT ALL ON SEQUENCE students_id_seq TO anon;
-GRANT ALL ON SEQUENCE goals_id_seq TO anon;
+GRANT ALL ON coach_settings TO anon;
+GRANT ALL ON students TO anon;
+GRANT ALL ON goal_records TO anon;
+GRANT ALL ON declarations TO anon;
+GRANT ALL ON SEQUENCE coach_settings_seq TO anon;
+GRANT ALL ON SEQUENCE students_seq TO anon;
+GRANT ALL ON SEQUENCE goal_records_seq TO anon;
+GRANT ALL ON SEQUENCE declarations_seq TO anon;

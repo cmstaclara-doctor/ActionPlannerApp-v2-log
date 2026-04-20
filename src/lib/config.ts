@@ -1,7 +1,7 @@
 export const config = {
   app: {
-    name: "ActionPlanner",
-    version: "0.1.0",
+    name: "ActionPlanner App v2.0-log",
+    version: "2.0",
     author: "by Doc Kalodski",
     description: "LEAP 99 Goal Action Planner",
   },

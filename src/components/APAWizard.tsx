@@ -79,7 +79,7 @@ export function APAWizard({
     setState(s => ({ ...s, selectedSampleId: sampleId, step: STEP_CONTEXT }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!state.goalType || !state.templateId || !state.subCategory) return;
     try {
       const record = buildGoalRecord(
@@ -90,7 +90,7 @@ export function APAWizard({
         state.answers,
         state.selectedSampleId
       );
-      saveGoalRecord(record);
+      await saveGoalRecord(record);
       setState(s => ({ ...s, step: STEP_SIGNOFF }));
     } catch (e) {
       console.error("Failed to save goal:", e);

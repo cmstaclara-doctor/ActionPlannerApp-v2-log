@@ -1,5 +1,4 @@
 "use client";
-// ─── Coach Dashboard — localStorage-only, no Supabase ────────────────────────
 
 import { useState, useEffect } from "react";
 import { getStudents, addStudent, updateStudentName, deleteStudent, seedDefaultStudents, getGoalRecord, getCoachInfo, setCoachInfo, getStudentDeclaration, setStudentDeclaration } from "@/lib/storage";
@@ -18,11 +17,22 @@ export function isWizardExpired(): boolean {
 }
 
 function DeclarationField({ studentId }: { studentId: string }) {
-  const [text, setText] = useState(() => getStudentDeclaration(studentId));
+  const [text, setText] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
-  function handleBlur() {
-    setStudentDeclaration(studentId, text);
+  useEffect(() => {
+    (async () => {
+      const decl = await getStudentDeclaration(studentId);
+      setText(decl);
+      setLoaded(true);
+    })();
+  }, [studentId]);
+
+  async function handleBlur() {
+    await setStudentDeclaration(studentId, text);
   }
+
+  if (!loaded) return null;
 
   return (
     <div className="px-4 pb-3 border-t border-zinc-700/50 pt-2.5">
@@ -41,70 +51,94 @@ function DeclarationField({ studentId }: { studentId: string }) {
 
 export function CoachDashboard() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [goalStatuses, setGoalStatuses] = useState<Record<string, Record<GoalType, boolean>>>({});
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [adding, setAdding] = useState(false);
-  const [, setRefresh] = useState(0);
   const [coachName, setCoachNameState] = useState("");
   const [councilName, setCouncilNameState] = useState("");
   const [editingCoach, setEditingCoach] = useState(false);
   const expired = isWizardExpired();
 
   useEffect(() => {
-    seedDefaultStudents();
-    setStudents(getStudents());
-    const info = getCoachInfo();
-    setCoachNameState(info.coachName);
-    setCouncilNameState(info.councilName);
+    (async () => {
+      await seedDefaultStudents();
+      const stus = await getStudents();
+      setStudents(stus);
+
+      // Pre-fetch all goal records
+      const statuses: Record<string, Record<GoalType, boolean>> = {};
+      for (const student of stus) {
+        statuses[student.id] = { enrollment: false, personal: false, professional: false };
+        for (const gt of GOAL_TYPES) {
+          const record = await getGoalRecord(student.id, gt);
+          statuses[student.id][gt] = !!record;
+        }
+      }
+      setGoalStatuses(statuses);
+
+      const info = await getCoachInfo();
+      setCoachNameState(info.coachName);
+      setCouncilNameState(info.councilName);
+    })();
   }, []);
 
-  function refresh() {
-    setStudents(getStudents());
-    setRefresh(r => r + 1);
+  async function refresh() {
+    const stus = await getStudents();
+    setStudents(stus);
+    const statuses: Record<string, Record<GoalType, boolean>> = {};
+    for (const student of stus) {
+      statuses[student.id] = { enrollment: false, personal: false, professional: false };
+      for (const gt of GOAL_TYPES) {
+        const record = await getGoalRecord(student.id, gt);
+        statuses[student.id][gt] = !!record;
+      }
+    }
+    setGoalStatuses(statuses);
   }
 
-  function handleSaveCoach() {
-    setCoachInfo(coachName, councilName);
+  async function handleSaveCoach() {
+    await setCoachInfo(coachName, councilName);
     setEditingCoach(false);
   }
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!newName.trim()) return;
-    addStudent(newName.trim());
+    await addStudent(newName.trim());
     setNewName("");
     setAdding(false);
-    refresh();
+    await refresh();
   }
 
-  function handleRename() {
+  async function handleRename() {
     if (!editingId || !editingName.trim()) return;
-    updateStudentName(editingId, editingName.trim());
+    await updateStudentName(editingId, editingName.trim());
     setEditingId(null);
     setEditingName("");
-    refresh();
+    await refresh();
   }
 
-  function handleDelete(id: string, name: string) {
+  async function handleDelete(id: string, name: string) {
     if (!confirm(`Delete ${name} and all their goals? This cannot be undone.`)) return;
-    deleteStudent(id);
-    refresh();
+    await deleteStudent(id);
+    await refresh();
   }
 
-  function handleResetStudents() {
+  async function handleResetStudents() {
     if (!confirm("Reset all students to Student 1–6? This will delete all current students and their goals.")) return;
-    const all = getStudents();
-    for (const s of all) deleteStudent(s.id);
+    const all = await getStudents();
+    for (const s of all) await deleteStudent(s.id);
     // Re-seed
     const defaults = ["Student1", "Student2", "Student3", "Student4", "Student5", "Student6"];
-    for (const name of defaults) addStudent(name);
-    refresh();
+    for (const name of defaults) await addStudent(name);
+    await refresh();
   }
 
-  function getGoalStatus(studentId: string) {
-    return GOAL_TYPES.map(gt => ({ gt, has: !!getGoalRecord(studentId, gt) }));
+  function getGoalStatusForStudent(studentId: string) {
+    const statuses = goalStatuses[studentId] || {};
+    return GOAL_TYPES.map(gt => ({ gt, has: statuses[gt] }));
   }
-
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 px-4 py-8 max-w-lg mx-auto">
@@ -184,7 +218,7 @@ export function CoachDashboard() {
       {/* Student list */}
       <div className="space-y-3">
         {students.map(student => {
-          const statuses = getGoalStatus(student.id);
+          const statuses = getGoalStatusForStudent(student.id);
           const completedCount = statuses.filter(s => s.has).length;
           const isEditing = editingId === student.id;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getGoalRecord, deleteGoalRecord, getStudents } from "@/lib/storage";
+import { getGoalRecord, deleteGoalRecord } from "@/lib/storage";
 import { GOAL_TEMPLATES } from "@/lib/data/goal-templates";
 import { APAWizard } from "./APAWizard";
 import { GOAL_TYPE_META } from "@/lib/constants";
@@ -83,31 +83,28 @@ function GoalCard({ goalType, record, expired, onEdit, onDelete, onNew }: GoalCa
   );
 }
 
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
 export function StudentGoalPage({ studentId, studentName }: Props) {
   const [records, setRecords] = useState<Record<GoalType, GoalRecord | null>>({
     enrollment: null, personal: null, professional: null,
   });
   const [wizard, setWizard] = useState<{ goalType: GoalType; editing: boolean } | null>(null);
-  const [, setRefresh] = useState(0);
 
-  function loadData() {
+  async function loadData() {
     const loaded = {} as Record<GoalType, GoalRecord | null>;
     for (const gt of GOAL_TYPES) {
-      loaded[gt] = getGoalRecord(studentId, gt);
+      loaded[gt] = await getGoalRecord(studentId, gt);
     }
     setRecords(loaded);
   }
 
-  useEffect(() => { loadData(); }, [studentId]);
-
-  function handleDelete(goalType: GoalType) {
-    if (!confirm(`Delete ${goalType} goal for ${studentName}? This cannot be undone.`)) return;
-    deleteGoalRecord(studentId, goalType);
+  useEffect(() => {
     loadData();
-    setRefresh(r => r + 1);
+  }, [studentId]);
+
+  async function handleDelete(goalType: GoalType) {
+    if (!confirm(`Delete ${goalType} goal for ${studentName}? This cannot be undone.`)) return;
+    await deleteGoalRecord(studentId, goalType);
+    await loadData();
   }
 
   const existingRecord = wizard ? records[wizard.goalType] : null;
