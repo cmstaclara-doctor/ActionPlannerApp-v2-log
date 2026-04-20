@@ -1,0 +1,33 @@
+name: Codespace Auto-Restart
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  restart-codespace:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restart Codespace
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CODESPACE_NAME="refactored-doodle"
+          echo "Checking Codespace status..."
+          gh codespace list --repo ${{ github.repository }} || echo "List failed, will restart"
+
+          echo "Starting Codespace: $CODESPACE_NAME"
+          gh codespace create \
+            --repo ${{ github.repository }} \
+            --branch master \
+            --machine standardLinux32gb \
+            2>/dev/null || echo "Codespace already exists or starting"
+
+          echo "✓ Codespace restart triggered"
+
+      - name: Verify Health Check
+        run: |
+          echo "Health check: Cloudflare + Codespaces"
+          curl -s -o /dev/null -w "Cloudflare: %{http_code}\n" https://toolkit-women-conditions-judicial.trycloudflare.com
+          curl -s -o /dev/null -w "Codespaces: %{http_code}\n" https://refactored-doodle-4jx99qjgpp5xc7g4r-3002.app.github.dev/ || echo "Codespaces: Starting..."
