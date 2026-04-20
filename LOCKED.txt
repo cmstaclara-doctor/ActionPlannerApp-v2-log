@@ -1,0 +1,30 @@
+═══════════════════════════════════════════════════════════════
+  ActionPlanner App v2.0-log — HARD LOCKED
+  Apr 20, 2026 @ 10:42 AM
+═══════════════════════════════════════════════════════════════
+
+COMMIT: dbf71f1c (Restore next.config.js for Vercel build)
+GIT TAG: v2.0-log-locked
+
+STATUS:
+✓ Code locked, no further edits
+✓ Dev server: localhost:3002 (npm run dev)
+✓ Supabase: ayohrbnesgstmjqbcbod (cloud data)
+✓ ngrok PRIMARY: Not usable (port routing issue)
+✓ Vercel: Blocked (npm build environment)
+
+LIVE ACCESS:
+→ http://localhost:3002 (local only)
+
+NOTES:
+- Kill pill date: June 21, 2026 (wizard disables)
+- 4 Supabase tables live: coach_settings, students, goal_records, declarations
+- All features working: student mgmt, goal wizard, PEAR format, SMARTER fields, 8-week milestones
+- No external auth required
+
+TO RESTART:
+  cd /c/Users/Public/C-Code/Projects/ActionPlanner
+  npm run dev
+  → http://localhost:3002
+
+═══════════════════════════════════════════════════════════════
