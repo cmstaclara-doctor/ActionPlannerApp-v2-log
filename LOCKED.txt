@@ -1,30 +1,38 @@
 ═══════════════════════════════════════════════════════════════
-  ActionPlanner App v2.0-log — HARD LOCKED
-  Apr 20, 2026 @ 10:42 AM
+  ActionPlanner App v2.0-log — FINAL LOCKED
+  Apr 20, 2026 @ 11:04 AM
 ═══════════════════════════════════════════════════════════════
 
-COMMIT: dbf71f1c (Restore next.config.js for Vercel build)
+COMMIT: 8c96eae2 (HARD LOCK: ActionPlanner v2.0-log production stable)
 GIT TAG: v2.0-log-locked
 
 STATUS:
 ✓ Code locked, no further edits
-✓ Dev server: localhost:3002 (npm run dev)
-✓ Supabase: ayohrbnesgstmjqbcbod (cloud data)
-✓ ngrok PRIMARY: Not usable (port routing issue)
-✓ Vercel: Blocked (npm build environment)
+✓ Cloudflare Tunnel LIVE & PERSISTENT
+✓ Supabase: ayohrbnesgstmjqbcbod (cloud data syncing)
+✓ All features tested & working
 
-LIVE ACCESS:
-→ http://localhost:3002 (local only)
+LIVE ACCESS (FOR COACHES):
+→ https://toolkit-women-conditions-judicial.trycloudflare.com
+   (No login. Works anywhere. No crashes. STABLE.)
 
-NOTES:
-- Kill pill date: June 21, 2026 (wizard disables)
-- 4 Supabase tables live: coach_settings, students, goal_records, declarations
-- All features working: student mgmt, goal wizard, PEAR format, SMARTER fields, 8-week milestones
-- No external auth required
+LOCAL BACKUP (FOR TESTING):
+→ http://localhost:3002 (npm run dev)
 
-TO RESTART:
+FEATURES:
+- Kill pill date: June 21, 2026 (wizard disables after LEAP 99 graduation)
+- 4 Supabase tables: coach_settings, students, goal_records, declarations
+- Student management, goal wizard, PEAR format, SMARTER fields, 8-week milestones
+- No authentication required
+
+TO RESTART DEV SERVER:
   cd /c/Users/Public/C-Code/Projects/ActionPlanner
   npm run dev
-  → http://localhost:3002
+  → localhost:3002 (localhost only)
+
+TO RESTART CLOUDFLARE TUNNEL (if needed):
+  cd /c/Users/Public/C-Code/Projects/ActionPlanner
+  cloudflared tunnel --url http://localhost:3002
+  → New Cloudflare URL will generate
 
 ═══════════════════════════════════════════════════════════════
