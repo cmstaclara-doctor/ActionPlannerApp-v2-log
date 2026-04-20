@@ -1,0 +1,16 @@
+name: Keep Alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Cloudflare Tunnel
+        run: curl -s https://toolkit-women-conditions-judicial.trycloudflare.com > /dev/null && echo "✅ Cloudflare OK"
+
+      - name: Ping GitHub Codespaces
+        run: curl -s https://refactored-doodle-4jx99qjgpp5xc7g4r-3002.app.github.dev/ > /dev/null && echo "✅ Codespaces OK"
