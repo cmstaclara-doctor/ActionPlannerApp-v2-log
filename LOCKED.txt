@@ -1,20 +1,26 @@
 ═══════════════════════════════════════════════════════════════
-  ActionPlanner App v2.0-log — FINAL LOCKED
-  Apr 20, 2026 @ 11:04 AM
+  ActionPlanner App v2.0-log — FINAL HARD LOCKED ✅✅✅
+  Apr 20, 2026 @ 12:55 PM
 ═══════════════════════════════════════════════════════════════
 
-COMMIT: 8c96eae2 (HARD LOCK: ActionPlanner v2.0-log production stable)
-GIT TAG: v2.0-log-locked
+COMMIT: 005e749a (FINAL LOCK: Both access methods live)
+GIT TAGS: v2.0-log-final-both-live + v2.0-log-FINAL-LOCKED
 
 STATUS:
-✓ Code locked, no further edits
+✓ Code locked, zero edits
 ✓ Cloudflare Tunnel LIVE & PERSISTENT
+✓ GitHub Codespaces LIVE & PERSISTENT
 ✓ Supabase: ayohrbnesgstmjqbcbod (cloud data syncing)
 ✓ All features tested & working
+✓ Both access methods on same database
 
 LIVE ACCESS (FOR COACHES):
-→ https://toolkit-women-conditions-judicial.trycloudflare.com
-   (No login. Works anywhere. No crashes. STABLE.)
+
+PRIMARY → https://toolkit-women-conditions-judicial.trycloudflare.com
+   (Always-on. Works anywhere. No crashes. STABLE.)
+
+BACKUP → https://refactored-doodle-4jx99qjgpp5xc7g4r-3002.app.github.dev/
+   (GitHub Codespaces. If primary fails, use backup. Same data.)
 
 LOCAL BACKUP (FOR TESTING):
 → http://localhost:3002 (npm run dev)
@@ -24,15 +30,22 @@ FEATURES:
 - 4 Supabase tables: coach_settings, students, goal_records, declarations
 - Student management, goal wizard, PEAR format, SMARTER fields, 8-week milestones
 - No authentication required
+- Cloud data sync — changes appear on all devices instantly
 
-TO RESTART DEV SERVER:
+TO RESTART DEV SERVER (LOCAL):
   cd /c/Users/Public/C-Code/Projects/ActionPlanner
   npm run dev
   → localhost:3002 (localhost only)
 
-TO RESTART CLOUDFLARE TUNNEL (if needed):
+TO RESTART CLOUDFLARE TUNNEL (if primary fails):
   cd /c/Users/Public/C-Code/Projects/ActionPlanner
   cloudflared tunnel --url http://localhost:3002
   → New Cloudflare URL will generate
+
+TO RESTART CODESPACES (if backup needed):
+  1. Go to https://github.com/cmstaclara-doctor/ActionPlannerApp-v2-log
+  2. Code → Codespaces → Create codespace on main
+  3. In terminal: npm install --legacy-peer-deps && npm run dev
+  4. Click "Ports" tab → see new public URL
 
 ═══════════════════════════════════════════════════════════════
